@@ -27,7 +27,7 @@ export function Header() {
           <img
             src={theme === "dark" ? "/logo-white.png" : "/logo-black.png"}
             alt="TEDxUofIChicago"
-            className="h-8 w-auto"
+            className="h-8 w-auto -ml-2"
           />
         </Link>
 
