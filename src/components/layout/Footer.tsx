@@ -17,7 +17,7 @@ export function Footer() {
               <img
                 src={theme === "dark" ? "/logo-white.png" : "/logo-black.png"}
                 alt="TEDxUofIChicago"
-                className="h-10 w-auto"
+                className="h-10 w-auto -ml-3"
               />
             </Link>
             <p className="mt-4 text-sm text-muted-foreground">
