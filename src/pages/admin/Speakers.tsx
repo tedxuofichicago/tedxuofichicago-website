@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useData } from "@/contexts/DataContext";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -37,12 +38,14 @@ const emptySpeaker: Omit<Speaker, "id"> = {
 
 export default function AdminSpeakersPage() {
   const { speakers, addSpeaker, updateSpeaker, deleteSpeaker } = useData();
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [editingSpeaker, setEditingSpeaker] = useState<Speaker | null>(null);
   const [formData, setFormData] = useState<Omit<Speaker, "id">>(emptySpeaker);
   const [tagsInput, setTagsInput] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const data = {
       ...formData,
@@ -51,12 +54,23 @@ export default function AdminSpeakersPage() {
         .map((t) => t.trim())
         .filter(Boolean),
     };
-    if (editingSpeaker) {
-      updateSpeaker(editingSpeaker.id, data);
-    } else {
-      addSpeaker(data);
+    setSaving(true);
+    try {
+      if (editingSpeaker) {
+        await updateSpeaker(editingSpeaker.id, data);
+      } else {
+        await addSpeaker(data);
+      }
+      handleClose();
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to save speaker. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
     }
-    handleClose();
   };
 
   const handleEdit = (speaker: Speaker) => {
@@ -66,9 +80,16 @@ export default function AdminSpeakersPage() {
     setIsOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this speaker?")) {
-      deleteSpeaker(id);
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this speaker?")) return;
+    try {
+      await deleteSpeaker(id);
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to delete speaker.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -193,8 +214,8 @@ export default function AdminSpeakersPage() {
                 <Button type="button" variant="outline" onClick={handleClose}>
                   Cancel
                 </Button>
-                <Button type="submit">
-                  {editingSpeaker ? "Update" : "Create"}
+                <Button type="submit" disabled={saving}>
+                  {saving ? "Saving…" : editingSpeaker ? "Update" : "Create"}
                 </Button>
               </div>
             </form>

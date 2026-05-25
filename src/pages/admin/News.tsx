@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useData } from "@/contexts/DataContext";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,18 +36,31 @@ const emptyPost: Omit<NewsPost, "id"> = {
 
 export default function AdminNewsPage() {
   const { newsPosts, addNewsPost, updateNewsPost, deleteNewsPost } = useData();
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [editingPost, setEditingPost] = useState<NewsPost | null>(null);
   const [formData, setFormData] = useState<Omit<NewsPost, "id">>(emptyPost);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingPost) {
-      updateNewsPost(editingPost.id, formData);
-    } else {
-      addNewsPost(formData);
+    setSaving(true);
+    try {
+      if (editingPost) {
+        await updateNewsPost(editingPost.id, formData);
+      } else {
+        await addNewsPost(formData);
+      }
+      handleClose();
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to save post. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
     }
-    handleClose();
   };
 
   const handleEdit = (post: NewsPost) => {
@@ -55,9 +69,16 @@ export default function AdminNewsPage() {
     setIsOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this post?")) {
-      deleteNewsPost(id);
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this post?")) return;
+    try {
+      await deleteNewsPost(id);
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to delete post.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -179,8 +200,8 @@ export default function AdminNewsPage() {
                 <Button type="button" variant="outline" onClick={handleClose}>
                   Cancel
                 </Button>
-                <Button type="submit">
-                  {editingPost ? "Update" : "Create"}
+                <Button type="submit" disabled={saving}>
+                  {saving ? "Saving…" : editingPost ? "Update" : "Create"}
                 </Button>
               </div>
             </form>

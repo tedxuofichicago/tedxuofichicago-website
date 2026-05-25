@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useData } from "@/contexts/DataContext";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -41,20 +42,31 @@ const emptyEvent: Omit<Event, "id"> = {
 
 export default function AdminEventsPage() {
   const { events, addEvent, updateEvent, deleteEvent } = useData();
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [formData, setFormData] = useState<Omit<Event, "id">>(emptyEvent);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingEvent) {
-      updateEvent(editingEvent.id, formData);
-    } else {
-      addEvent(formData);
+    setSaving(true);
+    try {
+      if (editingEvent) {
+        await updateEvent(editingEvent.id, formData);
+      } else {
+        await addEvent(formData);
+      }
+      handleClose();
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to save event. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
     }
-    setIsOpen(false);
-    setEditingEvent(null);
-    setFormData(emptyEvent);
   };
 
   const handleEdit = (event: Event) => {
@@ -63,9 +75,16 @@ export default function AdminEventsPage() {
     setIsOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this event?")) {
-      deleteEvent(id);
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this event?")) return;
+    try {
+      await deleteEvent(id);
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to delete event.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -235,8 +254,8 @@ export default function AdminEventsPage() {
                 <Button type="button" variant="outline" onClick={handleClose}>
                   Cancel
                 </Button>
-                <Button type="submit">
-                  {editingEvent ? "Update" : "Create"}
+                <Button type="submit" disabled={saving}>
+                  {saving ? "Saving…" : editingEvent ? "Update" : "Create"}
                 </Button>
               </div>
             </form>

@@ -24,18 +24,30 @@ export default function AdminSettingsPage() {
   const { events, siteSettings, updateSiteSettings } = useData();
   const { toast } = useToast();
   const [formData, setFormData] = useState(siteSettings);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setFormData(siteSettings);
   }, [siteSettings]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateSiteSettings(formData);
-    toast({
-      title: "Settings saved",
-      description: "Your site settings have been updated.",
-    });
+    setSaving(true);
+    try {
+      await updateSiteSettings(formData);
+      toast({
+        title: "Settings saved",
+        description: "Your site settings have been updated.",
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to save settings.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -153,9 +165,9 @@ export default function AdminSettingsPage() {
             </CardContent>
           </Card>
 
-          <Button type="submit" className="w-full">
+          <Button type="submit" className="w-full" disabled={saving}>
             <Save className="h-4 w-4 mr-2" />
-            Save Settings
+            {saving ? "Saving…" : "Save Settings"}
           </Button>
         </div>
       </form>

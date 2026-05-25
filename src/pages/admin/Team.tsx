@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useData } from "@/contexts/DataContext";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,18 +40,31 @@ const emptyMember: Omit<TeamMember, "id"> = {
 export default function AdminTeamPage() {
   const { teamMembers, addTeamMember, updateTeamMember, deleteTeamMember } =
     useData();
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [formData, setFormData] = useState<Omit<TeamMember, "id">>(emptyMember);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingMember) {
-      updateTeamMember(editingMember.id, formData);
-    } else {
-      addTeamMember(formData);
+    setSaving(true);
+    try {
+      if (editingMember) {
+        await updateTeamMember(editingMember.id, formData);
+      } else {
+        await addTeamMember(formData);
+      }
+      handleClose();
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to save member. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
     }
-    handleClose();
   };
 
   const handleEdit = (member: TeamMember) => {
@@ -59,9 +73,16 @@ export default function AdminTeamPage() {
     setIsOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this team member?")) {
-      deleteTeamMember(id);
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this team member?")) return;
+    try {
+      await deleteTeamMember(id);
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to delete member.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -188,8 +209,8 @@ export default function AdminTeamPage() {
                 <Button type="button" variant="outline" onClick={handleClose}>
                   Cancel
                 </Button>
-                <Button type="submit">
-                  {editingMember ? "Update" : "Create"}
+                <Button type="submit" disabled={saving}>
+                  {saving ? "Saving…" : editingMember ? "Update" : "Create"}
                 </Button>
               </div>
             </form>
