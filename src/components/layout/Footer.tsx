@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom";
 import { Instagram, Youtube, Mail, Twitter, Linkedin } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { useTheme } from "@/hooks/useTheme";
 
 export function Footer() {
   const { settings } = useSiteSettings();
+  const { theme } = useTheme();
 
   return (
     <footer className="border-t bg-secondary/30">
@@ -12,10 +14,11 @@ export function Footer() {
           {/* Brand */}
           <div>
             <Link to="/" className="inline-block">
-              <span className="text-2xl font-bold">
-                <span className="text-primary">TEDx</span>
-                <span className="text-foreground">UofIChicago</span>
-              </span>
+              <img
+                src={theme === "dark" ? "/logo-white.png" : "/logo-black.png"}
+                alt="TEDxUofIChicago"
+                className="h-10 w-auto"
+              />
             </Link>
             <p className="mt-4 text-sm text-muted-foreground">
               Ideas worth spreading at the University of Illinois Chicago.
