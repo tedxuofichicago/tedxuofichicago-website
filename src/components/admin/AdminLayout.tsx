@@ -1,19 +1,22 @@
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, Navigate, Outlet, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Calendar,
   Users,
   Mic,
-  UserCircle,
   Newspaper,
   Settings,
   ArrowLeft,
   Sun,
   Moon,
+  LogOut,
 } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabaseClient";
+import { isAdminEmail } from "@/lib/adminAuth";
 
 const adminNavItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -24,9 +27,81 @@ const adminNavItems = [
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
+type AuthState =
+  | { status: "loading" }
+  | { status: "unauthenticated" }
+  | { status: "forbidden"; email: string }
+  | { status: "authorized"; email: string };
+
 export function AdminLayout() {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
+  const [auth, setAuth] = useState<AuthState>({ status: "loading" });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const apply = (email: string | null | undefined) => {
+      if (cancelled) return;
+      if (!email) {
+        setAuth({ status: "unauthenticated" });
+      } else if (isAdminEmail(email)) {
+        setAuth({ status: "authorized", email });
+      } else {
+        setAuth({ status: "forbidden", email });
+      }
+    };
+
+    supabase.auth.getSession().then(({ data }) => {
+      apply(data.session?.user.email);
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      apply(session?.user.email);
+    });
+
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
+  if (auth.status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
+        Checking access…
+      </div>
+    );
+  }
+
+  if (auth.status === "unauthenticated") {
+    return <Navigate to="/admin/login" replace state={{ from: location }} />;
+  }
+
+  if (auth.status === "forbidden") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <div className="max-w-md text-center">
+          <h1 className="text-3xl font-bold mb-3">Not authorized</h1>
+          <p className="text-muted-foreground mb-6">
+            <strong>{auth.email}</strong> is not on the admin allowlist.
+          </p>
+          <div className="flex justify-center gap-3">
+            <Button onClick={handleSignOut} variant="outline">
+              Sign out
+            </Button>
+            <Button asChild>
+              <Link to="/">Back to site</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const isActive = (href: string, exact?: boolean) => {
     if (exact) return location.pathname === href;
@@ -51,13 +126,26 @@ export function AdminLayout() {
               <span className="text-foreground">Admin</span>
             </span>
           </div>
-          <Button variant="ghost" size="icon" onClick={toggleTheme}>
-            {theme === "light" ? (
-              <Moon className="h-5 w-5" />
-            ) : (
-              <Sun className="h-5 w-5" />
-            )}
-          </Button>
+          <div className="flex items-center gap-2">
+            <span className="hidden sm:inline text-sm text-muted-foreground">
+              {auth.email}
+            </span>
+            <Button variant="ghost" size="icon" onClick={toggleTheme}>
+              {theme === "light" ? (
+                <Moon className="h-5 w-5" />
+              ) : (
+                <Sun className="h-5 w-5" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleSignOut}
+              aria-label="Sign out"
+            >
+              <LogOut className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
       </header>
 

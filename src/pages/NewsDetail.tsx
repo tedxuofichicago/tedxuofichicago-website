@@ -1,12 +1,57 @@
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Calendar, User } from "lucide-react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
-import { newsPosts } from "@/data/mockData";
+import { supabase } from "@/lib/supabaseClient";
+import type { NewsPost } from "@/types";
 
 export default function NewsDetailPage() {
   const { slug } = useParams<{ slug: string }>();
-  const post = newsPosts.find((p) => p.slug === slug);
+  const [post, setPost] = useState<NewsPost | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!slug) return;
+
+    async function loadPost() {
+      const { data, error } = await supabase
+        .from("news_posts")
+        .select("*")
+        .eq("slug", slug)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error loading news post", error);
+        setLoading(false);
+        return;
+      }
+
+      if (data) {
+        setPost({
+          id: data.id,
+          slug: data.slug,
+          title: data.title,
+          excerpt: data.excerpt,
+          content: data.content,
+          coverImage: data.cover_image_url ?? "",
+          publishedAt: data.published_at,
+          author: data.author,
+        });
+      }
+      setLoading(false);
+    }
+
+    loadPost();
+  }, [slug]);
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="container py-20 text-center">Loading article…</div>
+      </Layout>
+    );
+  }
 
   if (!post) {
     return (
@@ -48,7 +93,6 @@ export default function NewsDetailPage() {
       if (line.trim() === "") {
         return <br key={index} />;
       }
-      // Handle bold text
       const parts = line.split(/\*\*(.*?)\*\*/g);
       return (
         <p key={index} className="mb-4">
@@ -85,7 +129,6 @@ export default function NewsDetailPage() {
       <article className="py-12">
         <div className="container">
           <div className="max-w-3xl mx-auto">
-            {/* Header */}
             <header className="mb-8">
               <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
                 <div className="flex items-center gap-2">
@@ -106,16 +149,17 @@ export default function NewsDetailPage() {
               <h1 className="text-4xl md:text-5xl font-bold mb-6">
                 {post.title}
               </h1>
-              <div className="aspect-video rounded-lg overflow-hidden border">
-                <img
-                  src={post.coverImage}
-                  alt={post.title}
-                  className="h-full w-full object-cover"
-                />
-              </div>
+              {post.coverImage && (
+                <div className="aspect-video rounded-lg overflow-hidden border">
+                  <img
+                    src={post.coverImage}
+                    alt={post.title}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              )}
             </header>
 
-            {/* Content */}
             <div className="prose prose-lg max-w-none text-muted-foreground">
               {renderContent(post.content)}
             </div>

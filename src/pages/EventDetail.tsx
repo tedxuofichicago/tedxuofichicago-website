@@ -65,7 +65,6 @@ export default function EventDetailPage() {
           talk_title,
           talk_description,
           youtube_url,
-          youtube_thumbnail_url,
           order,
           speaker: speakers (*)
         `,
@@ -76,30 +75,30 @@ export default function EventDetailPage() {
       if (esError) {
         console.error("Error loading event speakers", esError);
       } else {
-        const mappedES =
-          eventSpeakersData?.map((es: any) => ({
-            speaker: {
-              id: es.speaker.id,
-              slug: es.speaker.slug,
-              name: es.speaker.name,
-              title: es.speaker.title,
-              affiliation: es.speaker.affiliation,
-              tags: es.speaker.tags ?? [],
-              headshot: es.speaker.headshot_url ?? "",
-              shortBio: es.speaker.bio_short ?? "",
-              fullBio: es.speaker.bio_long ?? "",
-            } as Speaker,
-            eventSpeaker: {
-              id: es.id,
-              eventId: row.id,
-              speakerId: es.speaker.id,
-              talkTitle: es.talk_title,
-              talkDescription: es.talk_description,
-              youtubeUrl: es.youtube_url,
-              youtubeThumbnailUrl: es.youtube_thumbnail_url,
-              order: es.order,
-            } as EventSpeaker,
-          })) ?? [];
+        const mappedES: { speaker: Speaker; eventSpeaker: EventSpeaker }[] = (
+          eventSpeakersData ?? []
+        ).map((es: any) => ({
+          speaker: {
+            id: es.speaker.id,
+            slug: es.speaker.slug,
+            name: es.speaker.name,
+            title: es.speaker.title,
+            affiliation: es.speaker.affiliation,
+            tags: es.speaker.tags ?? [],
+            headshot: es.speaker.headshot_url ?? "",
+            shortBio: es.speaker.bio_short ?? "",
+            fullBio: es.speaker.bio_long ?? "",
+          },
+          eventSpeaker: {
+            id: es.id,
+            eventId: row.id,
+            speakerId: es.speaker.id,
+            talkTitle: es.talk_title,
+            talkDescription: es.talk_description,
+            youtubeUrl: es.youtube_url ?? undefined,
+            order: es.order,
+          },
+        }));
 
         setEventSpeakersList(mappedES);
       }
@@ -160,7 +159,11 @@ export default function EventDetailPage() {
       <section className="relative min-h-[50vh] flex items-end overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${event.heroImage})` }}
+          style={{
+            backgroundImage: event.heroImage
+              ? `url("${encodeURI(event.heroImage)}")`
+              : undefined,
+          }}
         >
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
         </div>
@@ -235,18 +238,20 @@ export default function EventDetailPage() {
                 </a>
               </Button>
             </div>
-            <div className="aspect-video rounded-lg overflow-hidden border">
-              <iframe
-                title="Event Location"
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                loading="lazy"
-                src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${encodeURIComponent(
-                  event.locationAddress,
-                )}`}
-              />
-            </div>
+            {import.meta.env.VITE_GOOGLE_MAPS_KEY ? (
+              <div className="aspect-video rounded-lg overflow-hidden border">
+                <iframe
+                  title="Event Location"
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  loading="lazy"
+                  src={`https://www.google.com/maps/embed/v1/place?key=${
+                    import.meta.env.VITE_GOOGLE_MAPS_KEY
+                  }&q=${encodeURIComponent(event.locationAddress)}`}
+                />
+              </div>
+            ) : null}
           </div>
         </div>
       </section>

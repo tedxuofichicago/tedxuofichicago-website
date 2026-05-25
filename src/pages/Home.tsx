@@ -6,13 +6,7 @@ import { SectionHeader } from "@/components/sections";
 import { EventCard, SpeakerCard, NewsPostCard } from "@/components/cards";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabaseClient";
-import type {
-  Event,
-  Speaker,
-  EventSpeaker,
-  NewsPost,
-  SiteSettings,
-} from "@/types";
+import type { Event, Speaker, EventSpeaker, NewsPost } from "@/types";
 
 export default function HomePage() {
   const [featuredEvent, setFeaturedEvent] = useState<Event | null>(null);
@@ -29,23 +23,14 @@ export default function HomePage() {
       const { data: settingsData, error: settingsError } = await supabase
         .from("site_settings")
         .select("*")
-        .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (settingsError || !settingsData) {
+      if (settingsError) {
         console.error("Error loading site settings", settingsError);
-        setLoading(false);
-        return;
       }
 
-      const siteSettings: SiteSettings = {
-        featuredEventId: settingsData.featured_event_id,
-        instagramUrl: settingsData.instagram_url,
-        youtubeUrl: settingsData.youtube_url,
-        emailAddress: settingsData.email_address,
-        twitterUrl: settingsData.twitter_url ?? undefined,
-        linkedInUrl: settingsData.linkedin_url ?? undefined,
-      };
+      const featuredEventId: string | null =
+        settingsData?.featured_event_id ?? null;
 
       // 2) all events (latest first)
       const { data: eventsData, error: eventsError } = await supabase
@@ -66,9 +51,9 @@ export default function HomePage() {
         theme: e.theme,
         year: e.year,
         date: e.date,
-        time: e.time ?? "",
-        location: e.location_name,
-        locationAddress: e.location_address,
+        time: e.start_time ?? "",
+        location: e.location_name ?? "",
+        locationAddress: e.location_address ?? "",
         heroImage: e.hero_image_url ?? "",
         description: e.description ?? "",
         isFlagship: e.is_flagship ?? false,
@@ -76,8 +61,7 @@ export default function HomePage() {
       }));
 
       const featured =
-        mappedEvents.find((e) => e.id === siteSettings.featuredEventId) ??
-        mappedEvents[0];
+        mappedEvents.find((e) => e.id === featuredEventId) ?? mappedEvents[0];
 
       if (!featured) {
         setLoading(false);
@@ -107,32 +91,36 @@ export default function HomePage() {
         console.error("Error loading featured speakers", esError);
       }
 
-      const mappedFeaturedSpeakers =
-        esData?.map((row: any) => {
-          const speaker: Speaker = {
-            id: row.speakers.id,
-            slug: row.speakers.slug,
-            name: row.speakers.name,
-            title: row.speakers.title,
-            affiliation: row.speakers.affiliation,
-            tags: row.speakers.tags ?? [],
-            headshot: row.speakers.headshot_url ?? "",
-            shortBio: row.speakers.bio_short ?? "",
-            fullBio: row.speakers.bio_long ?? "",
-          };
+      const mappedFeaturedSpeakers: {
+        speaker: Speaker;
+        eventSpeaker: EventSpeaker;
+      }[] = (esData ?? []).flatMap((row: any) => {
+        if (!row.speakers) return [];
 
-          const eventSpeaker: EventSpeaker = {
-            id: row.id,
-            eventId: row.event_id,
-            speakerId: row.speaker_id,
-            talkTitle: row.talk_title,
-            talkDescription: row.talk_description,
-            youtubeUrl: row.youtube_url ?? undefined,
-            order: row.order,
-          };
+        const speaker: Speaker = {
+          id: row.speakers.id,
+          slug: row.speakers.slug,
+          name: row.speakers.name,
+          title: row.speakers.title,
+          affiliation: row.speakers.affiliation,
+          tags: row.speakers.tags ?? [],
+          headshot: row.speakers.headshot_url ?? "",
+          shortBio: row.speakers.bio_short ?? "",
+          fullBio: row.speakers.bio_long ?? "",
+        };
 
-          return { speaker, eventSpeaker };
-        }) ?? [];
+        const eventSpeaker: EventSpeaker = {
+          id: row.id,
+          eventId: row.event_id,
+          speakerId: row.speaker_id,
+          talkTitle: row.talk_title,
+          talkDescription: row.talk_description,
+          youtubeUrl: row.youtube_url ?? undefined,
+          order: row.order,
+        };
+
+        return [{ speaker, eventSpeaker }];
+      });
 
       // 4) recent news
       const { data: newsData, error: newsError } = await supabase
@@ -186,7 +174,11 @@ export default function HomePage() {
       <section className="relative min-h-[70vh] flex items-center justify-center overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${featuredEvent.heroImage})` }}
+          style={{
+            backgroundImage: featuredEvent.heroImage
+              ? `url("${encodeURI(featuredEvent.heroImage)}")`
+              : undefined,
+          }}
         >
           <div className="absolute inset-0 bg-gradient-to-r from-background via-background/90 to-background/70" />
         </div>

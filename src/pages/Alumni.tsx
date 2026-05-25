@@ -24,18 +24,17 @@ export default function AlumniPage() {
         return;
       }
 
-      const mapped: TeamMember[] =
-        data?.map((m: any) => ({
-          id: m.id,
-          name: m.name,
-          role: m.role,
-          committee: m.committee,
-          isCurrent: m.is_current,
-          headshot: m.headshot_url ?? "",
-          linkedinUrl: m.linkedin_url ?? "",
-          yearsActive: m.years_active ?? "",
-          blurb: m.blurb ?? "",
-        })) ?? [];
+      const mapped: TeamMember[] = (data ?? []).map((m: any) => ({
+        id: m.id,
+        name: m.name,
+        role: m.role,
+        committee: m.committee,
+        isCurrent: m.is_current,
+        headshot: m.headshot_url ?? "",
+        blurb: m.blurb ?? undefined,
+        yearsActive: m.years_active ?? undefined,
+        linkedIn: m.linkedin_url ?? undefined,
+      }));
 
       setMembers(mapped);
       setLoading(false);

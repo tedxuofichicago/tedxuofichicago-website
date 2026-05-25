@@ -10,7 +10,6 @@ import type {
   EventSpeaker,
   SpeakerWithTalk,
   EventWithSpeakers,
-  SiteSettings,
 } from "@/types";
 
 export default function SpeakersPage() {
@@ -27,8 +26,7 @@ export default function SpeakersPage() {
       const { data: settingsData, error: settingsError } = await supabase
         .from("site_settings")
         .select("*")
-        .limit(1)
-        .single();
+        .maybeSingle();
 
       if (settingsError) {
         console.error("Error loading site settings", settingsError);
@@ -36,14 +34,8 @@ export default function SpeakersPage() {
         return;
       }
 
-      const siteSettings: SiteSettings = {
-        featuredEventId: settingsData.featured_event_id,
-        instagramUrl: settingsData.instagram_url,
-        youtubeUrl: settingsData.youtube_url,
-        emailAddress: settingsData.email_address,
-        twitterUrl: settingsData.twitter_url ?? undefined,
-        linkedInUrl: settingsData.linkedin_url ?? undefined,
-      };
+      const featuredEventId: string | null =
+        settingsData?.featured_event_id ?? null;
 
       // 2) load all events (most recent first)
       const { data: eventsData, error: eventsError } = await supabase
@@ -64,9 +56,9 @@ export default function SpeakersPage() {
         theme: e.theme,
         year: e.year,
         date: e.date,
-        time: e.time ?? "",
-        location: e.location_name,
-        locationAddress: e.location_address,
+        time: e.start_time ?? "",
+        location: e.location_name ?? "",
+        locationAddress: e.location_address ?? "",
         heroImage: e.hero_image_url ?? "",
         description: e.description ?? "",
         isFlagship: e.is_flagship ?? false,
@@ -74,8 +66,7 @@ export default function SpeakersPage() {
       }));
 
       const featured =
-        mappedEvents.find((e) => e.id === siteSettings.featuredEventId) ??
-        mappedEvents[0];
+        mappedEvents.find((e) => e.id === featuredEventId) ?? mappedEvents[0];
 
       if (!featured) {
         setLoading(false);
@@ -106,38 +97,37 @@ export default function SpeakersPage() {
         return;
       }
 
-      // 4) map rows into SpeakerWithTalk
-      const allSpeakerWithTalk: SpeakerWithTalk[] = esData.map((row: any) => {
-        const speaker: Speaker = {
-          id: row.speakers.id,
-          slug: row.speakers.slug,
-          name: row.speakers.name,
-          title: row.speakers.title,
-          affiliation: row.speakers.affiliation,
-          tags: row.speakers.tags ?? [],
-          headshot: row.speakers.headshot_url ?? "",
-          shortBio: row.speakers.bio_short ?? "",
-          fullBio: row.speakers.bio_long ?? "",
-        };
+      // 4) map rows into SpeakerWithTalk; skip rows whose event isn't loaded
+      const allSpeakerWithTalk: SpeakerWithTalk[] = esData.flatMap(
+        (row: any) => {
+          const eventRow = mappedEvents.find((e) => e.id === row.event_id);
+          if (!eventRow || !row.speakers) return [];
 
-        const eventSpeaker: EventSpeaker = {
-          id: row.id,
-          eventId: row.event_id,
-          speakerId: row.speaker_id,
-          talkTitle: row.talk_title,
-          talkDescription: row.talk_description,
-          youtubeUrl: row.youtube_url ?? undefined,
-          order: row.order,
-        };
+          const speaker: Speaker = {
+            id: row.speakers.id,
+            slug: row.speakers.slug,
+            name: row.speakers.name,
+            title: row.speakers.title,
+            affiliation: row.speakers.affiliation,
+            tags: row.speakers.tags ?? [],
+            headshot: row.speakers.headshot_url ?? "",
+            shortBio: row.speakers.bio_short ?? "",
+            fullBio: row.speakers.bio_long ?? "",
+          };
 
-        const eventRow = mappedEvents.find((e) => e.id === row.event_id)!;
+          const eventSpeaker: EventSpeaker = {
+            id: row.id,
+            eventId: row.event_id,
+            speakerId: row.speaker_id,
+            talkTitle: row.talk_title,
+            talkDescription: row.talk_description,
+            youtubeUrl: row.youtube_url ?? undefined,
+            order: row.order,
+          };
 
-        return {
-          ...speaker,
-          eventSpeaker,
-          event: eventRow,
-        };
-      });
+          return [{ ...speaker, eventSpeaker, event: eventRow }];
+        },
+      );
 
       // 5) split into featured vs past
       const featuredSpeakersList = allSpeakerWithTalk.filter(

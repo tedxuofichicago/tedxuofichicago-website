@@ -104,13 +104,6 @@ export function Header() {
                 {link.label}
               </Link>
             ))}
-            <Link
-              to="/admin"
-              className="py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Admin
-            </Link>
           </div>
         </nav>
       )}
